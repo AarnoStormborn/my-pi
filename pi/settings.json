@@ -1,0 +1,50 @@
+{
+  "lastChangelogVersion": "0.84.3",
+  "theme": "dark",
+  "defaultProvider": "commandcode",
+  "defaultModel": "deepseek/deepseek-v4-flash",
+  "defaultThinkingLevel": "high",
+  "quietStartup": true,
+  "skills": [
+    "-skills/cavecrew/SKILL.md",
+    "+skills/caveman/SKILL.md",
+    "-skills/caveman-commit/SKILL.md",
+    "-skills/caveman-compress/SKILL.md",
+    "-skills/caveman-help/SKILL.md",
+    "-skills/caveman-review/SKILL.md",
+    "-skills/caveman-stats/SKILL.md"
+  ],
+  "enabledModels": [
+    "commandcode/gpt-5.6-sol",
+    "commandcode/gpt-5.6-luna",
+    "commandcode/deepseek/deepseek-v4-pro",
+    "commandcode/deepseek/deepseek-v4-flash",
+    "commandcode/z-ai/glm-5.3-flash",
+    "commandcode/zai-org/GLM-5.3",
+    "commandcode/Qwen/Qwen3.8-Max",
+    "commandcode/Qwen/Qwen3.8-Flash",
+    "commandcode/google/gemini-3.7-flash",
+    "commandcode/xai/grok-4.6",
+    "cursor/grok-4.6",
+    "cursor/gpt-5.6-terra@1m",
+    "cursor/gpt-5-6-sol@1m",
+    "cursor/composer-2-5",
+    "cursor/claude-sonnet-5@1m",
+    "cursor/opus-5@1m",
+    "cursor/fable-5@1m",
+    "cursor/auto-smart"
+  ],
+  "hideThinkingBlock": false,
+  "packages": [
+    "npm:pi-mcp-adapter",
+    "npm:pi-web-access",
+    "npm:@bacnh85/pi-obsidian",
+    "npm:graphify-pi",
+    "npm:@tmustier/pi-usage-extension",
+    "git:github.com/tmustier/pi-extensions",
+    "npm:@tmustier/pi-raw-paste",
+    "npm:pi-commandcode-provider",
+    "npm:pi-goal",
+    "npm:pi-cursor-sdk"
+  ]
+}

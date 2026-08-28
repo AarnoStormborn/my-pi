@@ -1,0 +1,8 @@
+# Pi session runtime artifacts (auto-created when pi runs inside this repo)
+.pi/
+
+# macOS
+.DS_Store
+
+# Node
+node_modules/

@@ -34,7 +34,7 @@
     "cursor/fable-5@1m",
     "cursor/auto-smart"
   ],
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "packages": [
     "npm:pi-mcp-adapter",
     "npm:pi-web-access",

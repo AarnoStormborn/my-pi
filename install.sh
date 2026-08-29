@@ -41,11 +41,13 @@ LINKS=(
   "skills/pr-readiness|$HOME/.agents/skills/pr-readiness"
   "skills/project-recap|$HOME/.agents/skills/project-recap"
   "skills/session-recap|$HOME/.agents/skills/session-recap"
+  "skills/obsidian-ingest|$HOME/.agents/skills/obsidian-ingest"
+  "skills/graphify-vault-query|$HOME/.agents/skills/graphify-vault-query"
 )
 
-# Skill directories tracked here but deliberately not installed yet
-# (pending rework into generic skills):
-NOT_INSTALLED=(
+# Skill directories tracked here and now installed (reworked to be
+# vault-agnostic in v2):
+GENERIC_SKILLS=(
   "obsidian-ingest"
   "graphify-vault-query"
 )
@@ -151,7 +153,7 @@ case "${1:-}" in
     echo ""
     echo "Done. Restart pi or run /reload to pick up extension changes."
     echo ""
-    echo "Not installed (kept out of the live config for now): ${NOT_INSTALLED[*]}"
+    echo "Vault-agnostic skills now installed: ${GENERIC_SKILLS[*]}"
     echo "Optional: run 'atuin hook install pi' if you use atuin (extension no-ops safely without it)."
     ;;
   *)

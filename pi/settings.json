@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.85.1",
   "theme": "dark",
   "defaultProvider": "commandcode",
   "defaultModel": "deepseek/deepseek-v4-flash",
@@ -25,20 +25,13 @@
     "commandcode/Qwen/Qwen3.8-Flash",
     "commandcode/google/gemini-3.7-flash",
     "commandcode/xai/grok-4.6",
-    "cursor/grok-4.6",
-    "cursor/gpt-5.6-terra@1m",
-    "cursor/gpt-5-6-sol@1m",
-    "cursor/composer-2-5",
-    "cursor/claude-sonnet-5@1m",
-    "cursor/opus-5@1m",
-    "cursor/fable-5@1m",
-    "cursor/auto-smart",
     "anthropic/claude-fable-5",
     "anthropic/claude-opus-4-8",
     "anthropic/claude-sonnet-5",
     "openai/gpt-5.6-sol",
     "openai/gpt-5.6-luna",
-    "openai/gpt-5.6-terra"
+    "openai/gpt-5.6-terra",
+    "anthropic/claude-fable-5-1"
   ],
   "hideThinkingBlock": true,
   "packages": [
@@ -51,6 +44,7 @@
     "npm:@tmustier/pi-raw-paste",
     "npm:pi-commandcode-provider",
     "npm:pi-goal",
-    "npm:pi-cursor-sdk"
+    "npm:pi-cursor-sdk",
+    "npm:@datspike/pi-inline-slash-extension"
   ]
 }

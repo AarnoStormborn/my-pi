@@ -220,11 +220,29 @@ function padAnsi(str: string, targetWidth: number): string {
 	return str + " ".repeat(targetWidth - vis);
 }
 
+/**
+ * Height in terminal rows the banner occupies for a given width, mirroring
+ * buildBannerLines. The sticky-top overlay does not take part in layout, so the
+ * scrollable transcript needs a top offset of exactly this many rows for content
+ * (e.g. the first message of a new session) to start below the banner.
+ */
+function bannerRowCount(width: number): number {
+	// buildBannerLines short-circuits to a 3-line compact banner below 50 cols.
+	if (width < 50) return 3;
+	// Full banner: leading blank + tallest column + ruler + trailing blank.
+	// The details column is always the tallest (10 rows vs. 8 logo rows and at
+	// most 7 MCP rows), so the height is 1 + 10 + 2.
+	return 13;
+}
+
 export default function (pi: ExtensionAPI) {
 	let bannerMode: "sticky-top" | "header" = "sticky-top";
 	let svgLogoLines: string[] = [];
 	let activeOverlayHandle: { hide: () => void; isHidden: () => boolean } | null = null;
 	let overlayTui: any = null;
+	// Height (rows) the sticky-top banner overlay currently occupies on screen;
+	// 0 until the overlay has rendered at least once.
+	let stickyBannerRows = 0;
 	let mcpPollTimer: ReturnType<typeof setInterval> | null = null;
 	let lastMcpSnapshot = "";
 
@@ -402,11 +420,22 @@ export default function (pi: ExtensionAPI) {
 				// ignore
 			}
 			activeOverlayHandle = null;
+			stickyBannerRows = 0;
 		}
 
 		if (bannerMode === "sticky-top") {
-			// Clear normal scrollable header
-			ctx.ui.setHeader(undefined);
+			// The sticky overlay floats over the transcript without taking part in
+			// layout, so replace the scrollable header with an invisible spacer of
+			// the same height. This offsets the transcript content: at the top of a
+			// fresh session the first message renders below the banner instead of
+			// being hidden behind it.
+			ctx.ui.setHeader((_tui, _theme: Theme) => ({
+				render(width: number): string[] {
+					const rows = stickyBannerRows > 0 ? stickyBannerRows : bannerRowCount(width);
+					return Array.from({ length: rows }, () => "");
+				},
+				invalidate() {},
+			}));
 
 			// Render as nonCapturing overlay anchored at top of terminal screen
 			void ctx.ui.custom(
@@ -414,7 +443,9 @@ export default function (pi: ExtensionAPI) {
 					overlayTui = tui;
 					return {
 						render(width: number) {
-							return buildBannerLines(ctx, theme, width);
+							const lines = buildBannerLines(ctx, theme, width);
+							stickyBannerRows = lines.length;
+							return lines;
 						},
 						invalidate() {},
 					};

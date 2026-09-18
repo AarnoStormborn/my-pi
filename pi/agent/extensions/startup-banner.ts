@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { VERSION, APP_NAME } from "@earendil-works/pi-coding-agent";
-import { sliceByColumn, visibleWidth } from "@earendil-works/pi-tui";
+import { isViewportTUI, sliceByColumn, VStack, visibleWidth, type Component, type TUI } from "@earendil-works/pi-tui";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
 import * as fs from "node:fs";
@@ -243,6 +243,9 @@ export default function (pi: ExtensionAPI) {
 	// Height (rows) the sticky-top banner overlay currently occupies on screen;
 	// 0 until the overlay has rendered at least once.
 	let stickyBannerRows = 0;
+	// When the banner is a real top layout region (fullscreen mode): the wrapped
+	// layout root and the root it replaced.
+	let layoutBanner: { tui: TUI; originalRoot: Component; wrapper: Component } | null = null;
 	let mcpPollTimer: ReturnType<typeof setInterval> | null = null;
 	let lastMcpSnapshot = "";
 
@@ -409,10 +412,62 @@ export default function (pi: ExtensionAPI) {
 		return lines;
 	}
 
+	/** Banner as an ordinary component (used for the fixed top region). */
+	function createBannerComponent(ctx: ExtensionContext): Component {
+		return {
+			render(width: number): string[] {
+				return buildBannerLines(ctx, ctx.ui.theme, width);
+			},
+			invalidate() {},
+		};
+	}
+
+	/**
+	 * Wrap the fullscreen viewport layout root with a banner region at the top so
+	 * the transcript's scroll view starts below the banner.
+	 *
+	 * Text overlays cannot occlude Kitty/iTerm2 image placements (pi-tui's overlay
+	 * compositing skips image lines), so images scrolled to the top draw over a
+	 * floating banner. A real layout region makes the layout engine clip both text
+	 * and images at the banner's bottom edge, so they scroll underneath it.
+	 *
+	 * Returns false when the TUI is not a fullscreen viewport (regular mode).
+	 */
+	function ensureLayoutBanner(tui: TUI, ctx: ExtensionContext): boolean {
+		if (!isViewportTUI(tui)) return false;
+		const viewport = tui as unknown as { layoutRoot?: Component };
+		if (layoutBanner && layoutBanner.tui === tui && viewport.layoutRoot === layoutBanner.wrapper) {
+			return true;
+		}
+		// Only wrap an existing viewport root; wrapping raw mounted children would
+		// drop the input dock/scroll view.
+		const originalRoot = viewport.layoutRoot;
+		if (!originalRoot) return false;
+
+		const wrapper = new VStack([
+			{ component: createBannerComponent(ctx), basis: "auto", shrink: 0, minSize: 0 },
+			{ component: originalRoot, basis: 0, grow: 1, shrink: 1, minSize: 1 },
+		]);
+		layoutBanner = { tui, originalRoot, wrapper };
+		tui.setLayoutRoot(wrapper);
+		return true;
+	}
+
+	/** Restore the original fullscreen layout root, removing the banner region. */
+	function removeLayoutBanner(): void {
+		if (!layoutBanner) return;
+		try {
+			layoutBanner.tui.setLayoutRoot(layoutBanner.originalRoot);
+		} catch {
+			// ignore
+		}
+		layoutBanner = null;
+	}
+
 	function applyBanner(ctx: ExtensionContext) {
 		if (ctx.mode !== "tui") return;
 
-		// Clean up any existing overlay
+		// Clean up any existing overlay / fixed region and restore the header
 		if (activeOverlayHandle) {
 			try {
 				activeOverlayHandle.hide();
@@ -422,25 +477,42 @@ export default function (pi: ExtensionAPI) {
 			activeOverlayHandle = null;
 			stickyBannerRows = 0;
 		}
+		removeLayoutBanner();
+		ctx.ui.setHeader(undefined);
 
 		if (bannerMode === "sticky-top") {
-			// The sticky overlay floats over the transcript without taking part in
-			// layout, so replace the scrollable header with an invisible spacer of
-			// the same height. This offsets the transcript content: at the top of a
-			// fresh session the first message renders below the banner instead of
-			// being hidden behind it.
-			ctx.ui.setHeader((_tui, _theme: Theme) => ({
-				render(width: number): string[] {
-					const rows = stickyBannerRows > 0 ? stickyBannerRows : bannerRowCount(width);
-					return Array.from({ length: rows }, () => "");
-				},
-				invalidate() {},
-			}));
-
 			// Render as nonCapturing overlay anchored at top of terminal screen
 			void ctx.ui.custom(
 				(tui, theme, _kb, _done) => {
 					overlayTui = tui;
+
+					// Fullscreen: reserve a real top region for the banner. Overlays
+					// cannot occlude image placements, so images scrolled to the top
+					// would draw over a floating banner; with a layout region the scroll
+					// view starts below the banner and clips them at its edge. The
+					// zero-height overlay stays as a re-render hook.
+					if (ensureLayoutBanner(tui, ctx)) {
+						return {
+							render: () => {
+								// Re-assert the region if the layout root was reset.
+								ensureLayoutBanner(tui, ctx);
+								return [];
+							},
+							invalidate() {},
+						};
+					}
+
+					// Regular mode: the overlay floats over the transcript, so pad the
+					// scrollable header by the banner's height. This keeps the first
+					// message of a fresh session below the banner (images can still
+					// overlap here; only fullscreen can clip them).
+					ctx.ui.setHeader((_tui, _theme: Theme) => ({
+						render(width: number): string[] {
+							const rows = stickyBannerRows > 0 ? stickyBannerRows : bannerRowCount(width);
+							return Array.from({ length: rows }, () => "");
+						},
+						invalidate() {},
+					}));
 					return {
 						render(width: number) {
 							const lines = buildBannerLines(ctx, theme, width);
@@ -503,6 +575,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_shutdown", async () => {
 		stopMcpPolling();
+		removeLayoutBanner();
 	});
 
 	pi.registerCommand("banner", {
@@ -515,6 +588,7 @@ export default function (pi: ExtensionAPI) {
 					activeOverlayHandle.hide();
 					activeOverlayHandle = null;
 				}
+				removeLayoutBanner();
 				ctx.ui.setHeader(undefined);
 				ctx.ui.notify("Banner disabled", "info");
 			} else if (choice === "top" || choice === "header" || choice === "scroll") {

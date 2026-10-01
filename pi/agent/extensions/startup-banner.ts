@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
-import { VERSION, APP_NAME } from "@earendil-works/pi-coding-agent";
+import { VERSION, APP_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { isViewportTUI, sliceByColumn, VStack, visibleWidth, type Component, type TUI } from "@earendil-works/pi-tui";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
@@ -176,40 +176,27 @@ function formatMode(mode: string): string {
 	}
 }
 
-function getMcpServers(cwd: string): McpServerInfo[] {
-	const servers: McpServerInfo[] = [];
-	try {
-		const adapterPath = path.join(homedir(), ".pi", "agent", "npm", "node_modules", "pi-mcp-adapter", "dist", "config.js");
-		if (fs.existsSync(adapterPath)) {
-			// eslint-disable-next-line @typescript-eslint/no-var-requires
-			const { loadMcpConfig } = require(adapterPath);
-			const config = loadMcpConfig(undefined, cwd);
-			if (config && config.mcpServers) {
-				for (const [name, def] of Object.entries(config.mcpServers as Record<string, { disabled?: boolean }>)) {
-					servers.push({
-						name,
-						enabled: def && def.disabled !== true,
-					});
-				}
-			}
-		}
-	} catch {
-		// Fallback: check cache file
+function getMcpServers(ctx: ExtensionContext): McpServerInfo[] {
+	const servers = new Map<string, McpServerInfo>();
+	const readConfig = (configPath: string) => {
+		if (!fs.existsSync(configPath)) return;
 		try {
-			const cachePath = path.join(homedir(), ".pi", "agent", "mcp-cache.json");
-			if (fs.existsSync(cachePath)) {
-				const cache = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
-				if (cache && cache.servers) {
-					for (const name of Object.keys(cache.servers)) {
-						servers.push({ name, enabled: true });
-					}
-				}
+			const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+			if (!config?.mcpServers || typeof config.mcpServers !== "object") return;
+			for (const [name, definition] of Object.entries(config.mcpServers as Record<string, { enabled?: boolean }>)) {
+				servers.set(name, { name, enabled: definition?.enabled !== false });
 			}
 		} catch {
-			// ignore
+			// Pi reports malformed MCP config separately; keep the banner resilient.
 		}
+	};
+
+	// Project entries override global entries with the same name, matching Pi's MCP config rules.
+	readConfig(path.join(getAgentDir(), "mcp.json"));
+	if (ctx.isProjectTrusted()) {
+		readConfig(path.join(ctx.cwd, ".pi", "mcp.json"));
 	}
-	return servers;
+	return [...servers.values()];
 }
 
 function padAnsi(str: string, targetWidth: number): string {
@@ -251,7 +238,7 @@ export default function (pi: ExtensionAPI) {
 
 	/** Snapshot of MCP enabled/disabled state (name sorted) for change detection. */
 	function mcpSnapshotKey(ctx: ExtensionContext): string {
-		return getMcpServers(ctx.cwd)
+		return getMcpServers(ctx)
 			.map((s) => `${s.name}:${s.enabled ? 1 : 0}`)
 			.sort()
 			.join("|");
@@ -353,7 +340,7 @@ export default function (pi: ExtensionAPI) {
 		];
 
 		// Column 3: MCP Servers (up to 5 servers)
-		const mcpServers = getMcpServers(ctx.cwd).slice(0, 5);
+		const mcpServers = getMcpServers(ctx).slice(0, 5);
 		const mcpColumnLines: string[] = [
 			theme.bold(theme.fg("muted", "MCP Servers")),
 			"",

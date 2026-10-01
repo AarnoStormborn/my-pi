@@ -38,7 +38,6 @@
   ],
   "hideThinkingBlock": true,
   "packages": [
-    "npm:pi-mcp-adapter",
     "npm:pi-web-access",
     "npm:@bacnh85/pi-obsidian",
     "npm:graphify-pi",

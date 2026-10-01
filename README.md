@@ -35,7 +35,7 @@ Then restart pi or run `/reload`.
 
 Notes:
 - **atuin** (optional): run `atuin hook install pi` to record bash tool commands in atuin history. The extension no-ops safely without atuin installed.
-- **MCP servers** are deliberately *not* managed by this repo (`~/.pi/mcp.json` stays local).
+- **MCP servers** use Pi's built-in MCP support and remain machine-local (`~/.pi/agent/mcp.json` and project `.pi/mcp.json` are not managed by this repo).
 - **auth.json**, caches, and sessions are machine-local and never packaged.
 - **npm packages** (`pi/` packages list in settings.json) are installed by pi's own package manager, not this repo.
 
@@ -48,6 +48,6 @@ Notes:
 
 ## Excluded / not yet packaged
 
-- `~/.pi/mcp.json` — MCP servers (excluded per design).
+- `~/.pi/agent/mcp.json` and project `.pi/mcp.json` — native Pi MCP server configuration (excluded per design).
 - `obsidian-ingest`, `graphify-vault-query` skills — excluded in v1; pending rework into generic skills before inclusion.
 - `terminal-browser` — external app-managed symlink in `~/.agents/skills`, not self-authored.
